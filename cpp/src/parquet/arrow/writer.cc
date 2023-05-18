@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <iostream>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -384,6 +385,7 @@ class FileWriterImpl : public FileWriter {
     }
 
     for (int chunk = 0; chunk * chunk_size < table.num_rows(); chunk++) {
+        std::cout << "\nChunk #" << chunk << std::endl;
       int64_t offset = chunk * chunk_size;
       RETURN_NOT_OK_ELSE(
           WriteRowGroup(offset, std::min(chunk_size, table.num_rows() - offset)),

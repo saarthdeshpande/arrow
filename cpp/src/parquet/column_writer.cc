@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <utility>
@@ -72,6 +73,12 @@ namespace bit_util = arrow::bit_util;
 namespace parquet {
 
 namespace {
+
+static inline int64_t now() {
+    int64_t low, high;
+    __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
+    return (high << 32) | low;
+}
 
 // Visitor that exracts the value buffer from a FlatArray at a given offset.
 struct ValueBufferSlicer {
@@ -370,11 +377,14 @@ class SerializedPageWriter : public PageWriter {
     // Use Arrow::Buffer::shrink_to_fit = false
     // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
-
+    
+    uint64_t t0 = now();
     PARQUET_ASSIGN_OR_THROW(
         int64_t compressed_size,
         compressor_->Compress(src_buffer.size(), src_buffer.data(), max_compressed_size,
                               dest_buffer->mutable_data()));
+    uint64_t t1 = now();  
+    std::cout << std::endl << t1 - t0 << std::endl;
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
   }
 

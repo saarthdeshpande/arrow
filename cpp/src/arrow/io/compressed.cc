@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -88,8 +89,10 @@ class CompressedOutputStream::Impl {
           RETURN_NOT_OK(FlushCompressed());
           output_len = compressed_->size() - compressed_pos_;
           output = compressed_->mutable_data() + compressed_pos_;
+	  std::cout << std::endl << "compression beginning" << std::endl;
           ARROW_ASSIGN_OR_RAISE(
               result, compressor_->Compress(input_len, input, output_len, output));
+	  std::cout << std::endl << "compression done" << std::endl;
           compressed_pos_ += result.bytes_written;
         }
       }

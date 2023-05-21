@@ -21,9 +21,8 @@
 #include "arrow/util/type_fwd.h"
 #include "parquet/arrow/reader.h"
 #include "parquet/arrow/writer.h"
-
 #include <iostream>
-
+#include <x86intrin.h>
 arrow::Status ReadFullFile(std::string path_to_file) {
   // #include "arrow/io/api.h"
   // #include "arrow/parquet/arrow/reader.h"
@@ -109,7 +108,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
 
   // Choose compression
   std::shared_ptr<WriterProperties> props =
-      WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
+      WriterProperties::Builder().compression(arrow::Compression::GZIP)->build();
 
   // Opt to store Arrow schema for easier reads back into Arrow
   std::shared_ptr<ArrowWriterProperties> arrow_props =
@@ -120,7 +119,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
 
   ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(),
                                                  arrow::default_memory_pool(), outfile,
-                                                 /*chunk_size=*/3, props, arrow_props));
+                                                 /*chunk_size=*/5, props, arrow_props));
   return arrow::Status::OK();
 }
 
@@ -168,6 +167,7 @@ arrow::Status WriteInBatches(std::string path_to_file) {
 arrow::Status RunExamples(std::string path_to_file) {
   ARROW_RETURN_NOT_OK(WriteFullFile(path_to_file));
   ARROW_RETURN_NOT_OK(ReadFullFile(path_to_file));
+  __rdtsc();
   //ARROW_RETURN_NOT_OK(WriteInBatches(path_to_file));
   //ARROW_RETURN_NOT_OK(ReadInBatches(path_to_file));
   return arrow::Status::OK();

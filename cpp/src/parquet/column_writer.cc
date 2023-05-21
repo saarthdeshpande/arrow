@@ -57,7 +57,7 @@
 #include "parquet/statistics.h"
 #include "parquet/thrift_internal.h"
 #include "parquet/types.h"
-
+#include <x86intrin.h>
 using arrow::Array;
 using arrow::ArrayData;
 using arrow::Datum;
@@ -74,11 +74,6 @@ namespace parquet {
 
 namespace {
 
-static inline int64_t now() {
-    int64_t low, high;
-    __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
-    return (high << 32) | low;
-}
 
 // Visitor that exracts the value buffer from a FlatArray at a given offset.
 struct ValueBufferSlicer {
@@ -377,14 +372,14 @@ class SerializedPageWriter : public PageWriter {
     // Use Arrow::Buffer::shrink_to_fit = false
     // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
-    
-    uint64_t t0 = now();
+    std::cout << std::endl << "Source buffer size = " << src_buffer.size() << ";\tBuffer Data = " << src_buffer.data() << ";\t";  
+    uint64_t t0 = __rdtsc();
     PARQUET_ASSIGN_OR_THROW(
         int64_t compressed_size,
         compressor_->Compress(src_buffer.size(), src_buffer.data(), max_compressed_size,
                               dest_buffer->mutable_data()));
-    uint64_t t1 = now();  
-    std::cout << std::endl << t1 - t0 << std::endl;
+    uint64_t t1 = __rdtsc();  
+    std::cout << "Cycles = " << t1 - t0 << std::endl;
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
   }
 

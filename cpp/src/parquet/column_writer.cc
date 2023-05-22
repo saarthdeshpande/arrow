@@ -1009,6 +1009,7 @@ void ColumnWriterImpl::BuildDataPageV2(int64_t definition_levels_rle_size,
   // V2.
   std::shared_ptr<Buffer> compressed_values;
   if (pager_->has_compressor()) {
+    std::cout << "\npager compressr\n";
     pager_->Compress(*values, compressor_temp_buffer_.get());
     compressed_values = compressor_temp_buffer_;
   } else {

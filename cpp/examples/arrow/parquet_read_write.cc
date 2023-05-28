@@ -78,11 +78,11 @@ arrow::Result<std::shared_ptr<arrow::Table>> GetTable() {
   auto builder = arrow::Int32Builder();
 
   std::shared_ptr<arrow::Array> arr_x;
-  ARROW_RETURN_NOT_OK(builder.AppendValues({1, 3, 5, 7, 1}));
+  ARROW_RETURN_NOT_OK(builder.AppendValues({1, 3, 5, 7, 9, 11, 13, 15, 17, 19}));
   ARROW_RETURN_NOT_OK(builder.Finish(&arr_x));
 
   std::shared_ptr<arrow::Array> arr_y;
-  ARROW_RETURN_NOT_OK(builder.AppendValues({2, 4, 6, 8, 10}));
+  ARROW_RETURN_NOT_OK(builder.AppendValues({2, 4, 6, 8, 10, 12, 14, 16, 18, 20}));
   ARROW_RETURN_NOT_OK(builder.Finish(&arr_y));
 
   auto schema = arrow::schema(
@@ -119,7 +119,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
 
   ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(),
                                                  arrow::default_memory_pool(), outfile,
-                                                 /*chunk_size=*/5, props, arrow_props));
+                                                 /*chunk_size=*/10, props, arrow_props));
   return arrow::Status::OK();
 }
 

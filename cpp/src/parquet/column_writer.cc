@@ -284,7 +284,8 @@ class SerializedPageWriter : public PageWriter {
   }
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
-    int64_t uncompressed_size = page.size();
+	  std::cout << "\nWriteDictPageCalled\n";
+	  int64_t uncompressed_size = page.size();
     std::shared_ptr<Buffer> compressed_data;
     if (has_compressor()) {
       auto buffer = std::static_pointer_cast<ResizableBuffer>(
@@ -973,6 +974,7 @@ void ColumnWriterImpl::BuildDataPageV1(int64_t definition_levels_rle_size,
 
   std::shared_ptr<Buffer> compressed_data;
   if (pager_->has_compressor()) {
+    std::cout << "\npager compressr v1\tpager size = " << sizeof(pager_) << std::endl;
     pager_->Compress(*(uncompressed_data_.get()), compressor_temp_buffer_.get());
     compressed_data = compressor_temp_buffer_;
   } else {
@@ -1009,7 +1011,7 @@ void ColumnWriterImpl::BuildDataPageV2(int64_t definition_levels_rle_size,
   // V2.
   std::shared_ptr<Buffer> compressed_values;
   if (pager_->has_compressor()) {
-    std::cout << "\npager compressr\n";
+    std::cout << "\npager compressr v2\n";
     pager_->Compress(*values, compressor_temp_buffer_.get());
     compressed_values = compressor_temp_buffer_;
   } else {

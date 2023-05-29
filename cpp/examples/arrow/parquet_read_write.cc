@@ -116,10 +116,12 @@ arrow::Status WriteFullFile(std::string path_to_file) {
 
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
   ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file));
-
+  uint64_t t0 = __rdtsc();
   ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(),
                                                  arrow::default_memory_pool(), outfile,
                                                  /*chunk_size=*/10, props, arrow_props));
+  uint64_t t1 = __rdtsc();
+  std::cout << "\ntotal cycles = " << t1 - t0 << std::endl;
   return arrow::Status::OK();
 }
 

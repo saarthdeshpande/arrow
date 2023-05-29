@@ -23,7 +23,7 @@
 #include "parquet/arrow/writer.h"
 #include <iostream>
 #include <x86intrin.h>
-arrow::Status ReadFullFile(std::string path_to_file) {
+arrow::Result<std::shared_ptr<arrow::Table>> ReadFullFile(std::string path_to_file) {
   // #include "arrow/io/api.h"
   // #include "arrow/parquet/arrow/reader.h"
 
@@ -38,7 +38,7 @@ arrow::Status ReadFullFile(std::string path_to_file) {
   // Read entire file as a single Arrow table
   std::shared_ptr<arrow::Table> table;
   ARROW_RETURN_NOT_OK(arrow_reader->ReadTable(&table));
-  return arrow::Status::OK();
+  return table;
 }
 
 arrow::Status ReadInBatches(std::string path_to_file) {
@@ -104,7 +104,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
   using parquet::ArrowWriterProperties;
   using parquet::WriterProperties;
 
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, GetTable());
+  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, ReadFullFile(path_to_file));
 
   // Choose compression
   std::shared_ptr<WriterProperties> props =
@@ -115,7 +115,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
       ArrowWriterProperties::Builder().store_schema()->build();
 
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
-  ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file));
+  ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file + ".written"));
   uint64_t t0 = __rdtsc();
   ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(),
                                                  arrow::default_memory_pool(), outfile,
@@ -168,8 +168,7 @@ arrow::Status WriteInBatches(std::string path_to_file) {
 
 arrow::Status RunExamples(std::string path_to_file) {
   ARROW_RETURN_NOT_OK(WriteFullFile(path_to_file));
-  ARROW_RETURN_NOT_OK(ReadFullFile(path_to_file));
-  __rdtsc();
+//  ARROW_RETURN_NOT_OK(ReadFullFile(path_to_file));
   //ARROW_RETURN_NOT_OK(WriteInBatches(path_to_file));
   //ARROW_RETURN_NOT_OK(ReadInBatches(path_to_file));
   return arrow::Status::OK();

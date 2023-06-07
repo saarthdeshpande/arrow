@@ -75,6 +75,7 @@ using parquet::ParquetVersion;
 using parquet::schema::GroupNode;
 
 namespace parquet {
+extern unsigned long long total_compress_time;
 namespace arrow {
 
 namespace {
@@ -391,6 +392,7 @@ class FileWriterImpl : public FileWriter {
           WriteRowGroup(offset, std::min(chunk_size, table.num_rows() - offset)),
           PARQUET_IGNORE_NOT_OK(Close()));
     }
+	  std::cout << "compression cycles = " << total_compress_time << "\n";
     return Status::OK();
   }
 

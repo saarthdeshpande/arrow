@@ -71,7 +71,7 @@ using arrow::util::RleEncoder;
 namespace bit_util = arrow::bit_util;
 
 namespace parquet {
-
+unsigned long long total_compress_time = 0;
 namespace {
 
 
@@ -284,7 +284,7 @@ class SerializedPageWriter : public PageWriter {
   }
 
   int64_t WriteDictionaryPage(const DictionaryPage& page) override {
-	  std::cout << "\nDictionary Page\n";
+	  //std::cout << "\nDictionary Page\n";
 	  int64_t uncompressed_size = page.size();
     std::shared_ptr<Buffer> compressed_data;
     if (has_compressor()) {
@@ -373,14 +373,13 @@ class SerializedPageWriter : public PageWriter {
     // Use Arrow::Buffer::shrink_to_fit = false
     // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
-    std::cout << std::endl << "Source buffer size = " << src_buffer.size() << ";\tCompressor = " << compressor_->name() << ";\t";
     uint64_t t0 = __rdtsc();
     PARQUET_ASSIGN_OR_THROW(
         int64_t compressed_size,
         compressor_->Compress(src_buffer.size(), src_buffer.data(), max_compressed_size,
                               dest_buffer->mutable_data()));
     uint64_t t1 = __rdtsc();  
-    std::cout << "Cycles = " << t1 - t0 << std::endl;
+    total_compress_time += t1 - t0;
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
   }
 
@@ -974,7 +973,7 @@ void ColumnWriterImpl::BuildDataPageV1(int64_t definition_levels_rle_size,
 
   std::shared_ptr<Buffer> compressed_data;
   if (pager_->has_compressor()) {
-	  std::cout << "\nData Page\n";
+	 // std::cout << "\nData Page\n";
     pager_->Compress(*(uncompressed_data_.get()), compressor_temp_buffer_.get());
     compressed_data = compressor_temp_buffer_;
   } else {
@@ -1658,7 +1657,7 @@ Status TypedColumnWriterImpl<DType>::WriteArrowDictionary(
     // Once the MinMax kernel supports all data types we should use that kernel instead
     // as it does not make any copies.
     ::arrow::compute::ExecContext exec_ctx(ctx->memory_pool);
-    exec_ctx.set_use_threads(false);
+    exec_ctx.set_use_threads(true);
 
     std::shared_ptr<::arrow::Array> referenced_dictionary;
     PARQUET_ASSIGN_OR_THROW(::arrow::Datum referenced_indices,

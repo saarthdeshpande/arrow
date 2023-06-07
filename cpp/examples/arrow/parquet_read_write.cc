@@ -94,7 +94,7 @@ arrow::Result<std::shared_ptr<arrow::Table>> GetTable() {
 arrow::Result<std::shared_ptr<arrow::TableBatchReader>> GetRBR() {
   ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, GetTable());
   auto reader = std::make_shared<arrow::TableBatchReader>(table);
-  reader->set_chunksize(10);
+  reader->set_chunksize(1);
   return reader;
 }
 
@@ -105,22 +105,40 @@ arrow::Status WriteFullFile(std::string path_to_file) {
   using parquet::WriterProperties;
 
   ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, ReadFullFile(path_to_file));
-
+/*
   // Choose compression
   std::shared_ptr<WriterProperties> props =
-      WriterProperties::Builder().compression(arrow::Compression::GZIP)->build();
+      WriterProperties::Builder().compression(arrow::Compression::GZIP)->write_batch_size(10)->max_row_group_length(table->num_rows())->build();
 
   // Opt to store Arrow schema for easier reads back into Arrow
   std::shared_ptr<ArrowWriterProperties> arrow_props =
-      ArrowWriterProperties::Builder().store_schema()->build();
+      ArrowWriterProperties::Builder().set_use_threads(true)->build(); //store_schema()->build();
 
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
   ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file + ".written"));
   uint64_t t0 = __rdtsc();
-  ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(),
-                                                 arrow::default_memory_pool(), outfile,
-                                                 /*chunk_size=*/10, props, arrow_props));
+  ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*table.get(), arrow::default_memory_pool(), outfile,20, props, arrow_props));
   uint64_t t1 = __rdtsc();
+  std::cout << "\ntotal cycles = " << t1 - t0 << std::endl;
+  */
+  auto sink = parquet::CreateOutputStream();
+  auto write_props = WriterProperties::Builder()
+			 .compression(arrow::Compression::GZIP)
+                         ->write_batch_size(10)
+                         ->max_row_group_length(table->num_rows())
+                         ->build();
+  auto pool = ::arrow::default_memory_pool();
+  auto arrow_properties = ArrowWriterProperties::Builder().set_use_threads(true)->build();
+  ARROW_ASSIGN_OR_RAISE(
+      auto writer, parquet::arrow::FileWriter::Open(*table->schema(), pool, sink, std::move(write_props),
+                                    std::move(arrow_properties)));
+  ARROW_ASSIGN_OR_RAISE(auto batch, table->CombineChunksToBatch(pool));
+  ARROW_RETURN_NOT_OK(writer->NewBufferedRowGroup());
+  uint64_t t0 = __rdtsc();
+  ARROW_RETURN_NOT_OK(writer->WriteRecordBatch(*batch));
+  uint64_t t1 = __rdtsc();
+  ARROW_RETURN_NOT_OK(writer->Close());
+  ARROW_ASSIGN_OR_RAISE(auto buffer, sink->Finish());
   std::cout << "\ntotal cycles = " << t1 - t0 << std::endl;
   return arrow::Status::OK();
 }
@@ -141,7 +159,7 @@ arrow::Status WriteInBatches(std::string path_to_file) {
 
   // Opt to store Arrow schema for easier reads back into Arrow
   std::shared_ptr<ArrowWriterProperties> arrow_props =
-      ArrowWriterProperties::Builder().store_schema()->build();
+      ArrowWriterProperties::Builder().set_use_threads(true)->build();//store_schema()->build();
 
   // Create a writer
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
@@ -157,6 +175,7 @@ arrow::Status WriteInBatches(std::string path_to_file) {
     ARROW_ASSIGN_OR_RAISE(auto batch, maybe_batch);
     ARROW_ASSIGN_OR_RAISE(auto table,
                           arrow::Table::FromRecordBatches(batch->schema(), {batch}));
+
     ARROW_RETURN_NOT_OK(writer->WriteTable(*table.get(), batch->num_rows()));
   }
 

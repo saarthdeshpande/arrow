@@ -91,10 +91,11 @@ arrow::Result<std::shared_ptr<arrow::Table>> GetTable() {
   return arrow::Table::Make(schema, {arr_x, arr_y});
 }
 
-arrow::Result<std::shared_ptr<arrow::TableBatchReader>> GetRBR() {
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, GetTable());
+arrow::Result<std::shared_ptr<arrow::TableBatchReader>> GetRBR(std::string path_to_file) {
+  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Table> table, ReadFullFile(path_to_file));
   auto reader = std::make_shared<arrow::TableBatchReader>(table);
-  reader->set_chunksize(1);
+  // Compute a stream of record batches from a (possibly chunked) Table.
+  reader->set_chunksize(1000000);
   return reader;
 }
 
@@ -124,7 +125,7 @@ arrow::Status WriteFullFile(std::string path_to_file) {
   auto sink = parquet::CreateOutputStream();
   auto write_props = WriterProperties::Builder()
 			 .compression(arrow::Compression::GZIP)
-                         ->write_batch_size(10)
+                         ->write_batch_size(2000000)
                          ->max_row_group_length(table->num_rows())
                          ->build();
   auto pool = ::arrow::default_memory_pool();
@@ -151,19 +152,20 @@ arrow::Status WriteInBatches(std::string path_to_file) {
 
   // Data is in RBR
   std::shared_ptr<arrow::RecordBatchReader> batch_stream;
-  ARROW_ASSIGN_OR_RAISE(batch_stream, GetRBR());
+  ARROW_ASSIGN_OR_RAISE(batch_stream, GetRBR(path_to_file));
+  std::cout << "\nafter rbr\n";
 
   // Choose compression
   std::shared_ptr<WriterProperties> props =
-      WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
+      WriterProperties::Builder().compression(arrow::Compression::GZIP)->build();
 
   // Opt to store Arrow schema for easier reads back into Arrow
   std::shared_ptr<ArrowWriterProperties> arrow_props =
-      ArrowWriterProperties::Builder().set_use_threads(true)->build();//store_schema()->build();
+      ArrowWriterProperties::Builder().set_use_threads(true)->build();//.set_use_threads(true)->store_schema()
 
   // Create a writer
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
-  ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file));
+  ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file + ".written"));
   std::unique_ptr<parquet::arrow::FileWriter> writer;
   ARROW_ASSIGN_OR_RAISE(
       writer, parquet::arrow::FileWriter::Open(*batch_stream->schema().get(),
@@ -171,24 +173,36 @@ arrow::Status WriteInBatches(std::string path_to_file) {
                                                props, arrow_props));
 
   // Write each batch as a row_group
+  uint64_t t0 = __rdtsc();
   for (arrow::Result<std::shared_ptr<arrow::RecordBatch>> maybe_batch : *batch_stream) {
     ARROW_ASSIGN_OR_RAISE(auto batch, maybe_batch);
-    ARROW_ASSIGN_OR_RAISE(auto table,
-                          arrow::Table::FromRecordBatches(batch->schema(), {batch}));
-
-    ARROW_RETURN_NOT_OK(writer->WriteTable(*table.get(), batch->num_rows()));
+    ARROW_RETURN_NOT_OK(writer->NewBufferedRowGroup());
+    ARROW_RETURN_NOT_OK(writer->WriteRecordBatch(*batch));
   }
-
+  uint64_t t1 = __rdtsc();
+  std::cout << "\ntotal cycles = " << t1 - t0 << std::endl;
   // Write file footer and close
+  //    ARROW_ASSIGN_OR_RAISE(auto table,
+  //                          arrow::Table::FromRecordBatches(batch->schema(), {batch}));
+  //    uint64_t t0 = __rdtsc();
+  //    ARROW_RETURN_NOT_OK(writer->WriteTable(*table.get(), batch->num_rows()));
+  //    uint64_t t1 = __rdtsc();
+  //    std::cout << "\nbatch cycles = " << t1 - t0 << std::endl;
+  //    ARROW_ASSIGN_OR_RAISE(auto batch, table->CombineChunksToBatch(pool));
+  //    ARROW_RETURN_NOT_OK(writer->Close());
+  //    ARROW_ASSIGN_OR_RAISE(auto buffer, sink->Finish());
   ARROW_RETURN_NOT_OK(writer->Close());
 
   return arrow::Status::OK();
 }
 
 arrow::Status RunExamples(std::string path_to_file) {
-  ARROW_RETURN_NOT_OK(WriteFullFile(path_to_file));
+//  ARROW_RETURN_NOT_OK(WriteFullFile(path_to_file));
 //  ARROW_RETURN_NOT_OK(ReadFullFile(path_to_file));
-  //ARROW_RETURN_NOT_OK(WriteInBatches(path_to_file));
+
+  ARROW_RETURN_NOT_OK(WriteInBatches(path_to_file));
+  std::cout << "\nafter write batches\n";
+
   //ARROW_RETURN_NOT_OK(ReadInBatches(path_to_file));
   return arrow::Status::OK();
 }

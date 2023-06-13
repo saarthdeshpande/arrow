@@ -73,8 +73,6 @@ namespace bit_util = arrow::bit_util;
 namespace parquet {
 unsigned long long total_compress_time = 0;
 namespace {
-
-
 // Visitor that exracts the value buffer from a FlatArray at a given offset.
 struct ValueBufferSlicer {
   template <typename T>
@@ -369,7 +367,6 @@ class SerializedPageWriter : public PageWriter {
     // Compress the data
     int64_t max_compressed_size =
         compressor_->MaxCompressedLen(src_buffer.size(), src_buffer.data());
-
     // Use Arrow::Buffer::shrink_to_fit = false
     // underlying buffer only keeps growing. Resize to a smaller size does not reallocate.
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(max_compressed_size, false));
@@ -378,8 +375,9 @@ class SerializedPageWriter : public PageWriter {
         int64_t compressed_size,
         compressor_->Compress(src_buffer.size(), src_buffer.data(), max_compressed_size,
                               dest_buffer->mutable_data()));
-    uint64_t t1 = __rdtsc();  
+    uint64_t t1 = __rdtsc();
     total_compress_time += t1 - t0;
+//    std::cout << "compress time = " << t1 - t0 << std::endl;
     PARQUET_THROW_NOT_OK(dest_buffer->Resize(compressed_size, false));
   }
 

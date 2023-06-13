@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <condition_variable>
 #include <deque>
+#include <iostream>
 #include <list>
 #include <mutex>
 #include <string>
@@ -408,6 +409,7 @@ Status ThreadPool::Shutdown(bool wait) {
 }
 
 void ThreadPool::CollectFinishedWorkersUnlocked() {
+  std::cout << "\n\n\n\nthread::join called\n\n\n\n";
   for (auto& thread : state_->finished_workers_) {
     // Make sure OS thread has exited
     thread.join();
@@ -424,6 +426,7 @@ void ThreadPool::LaunchWorkersUnlocked(int threads) {
 
   for (int i = 0; i < threads; i++) {
     state_->workers_.emplace_back();
+    std::cout << "\n\n\n\n\n\nstd::thread call\n\n\n\n\n";
     auto it = --(state_->workers_.end());
     *it = std::thread([this, state, it] {
       current_thread_pool_ = this;

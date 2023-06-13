@@ -393,6 +393,7 @@ class FileWriterImpl : public FileWriter {
           PARQUET_IGNORE_NOT_OK(Close()));
     }
 	  std::cout << "compression cycles = " << total_compress_time << "\n";
+//          total_compress_time = 0;
     return Status::OK();
   }
 
@@ -442,7 +443,7 @@ class FileWriterImpl : public FileWriter {
             [&](int i) { return writers[i]->Write(&parallel_column_write_contexts_[i]); },
             arrow_properties_->executor()));
       }
-
+std::cout << "compression cycles = " << total_compress_time << "\n";
       return Status::OK();
     };
 

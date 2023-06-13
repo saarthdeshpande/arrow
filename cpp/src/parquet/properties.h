@@ -769,7 +769,7 @@ PARQUET_EXPORT const std::shared_ptr<WriterProperties>& default_writer_propertie
 // ----------------------------------------------------------------------
 // Properties specific to Apache Arrow columnar read and write
 
-static constexpr bool kArrowDefaultUseThreads = false;
+static constexpr bool kArrowDefaultUseThreads = true;
 
 // Default number of rows to read when using ::arrow::RecordBatchReader
 static constexpr int64_t kArrowDefaultBatchSize = 64 * 1024;
